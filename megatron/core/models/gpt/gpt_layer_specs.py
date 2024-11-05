@@ -27,6 +27,13 @@ try:
     HAVE_TE = True
 except ImportError:
     HAVE_TE = False
+    TEColumnParallelGroupedLinear = None
+    TEColumnParallelLinear = None
+    TEDotProductAttention = None
+    TELayerNormColumnParallelLinear = None
+    TENorm = None
+    TERowParallelGroupedLinear = None
+    TERowParallelLinear = None
 
 try:
     import apex  # pylint: disable=unused-import

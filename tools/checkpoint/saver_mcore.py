@@ -287,8 +287,8 @@ def add_arguments(parser):
 def save_checkpoint(queue, args):
 
     # Transformer engine >= 0.12.0, for CPU initialization.
-    assert is_te_min_version("0.12.0"), \
-        "transformer engine version: %s (>=0.12.0 required)." % get_te_version()
+    #assert is_te_min_version("0.12.0"), \
+    #    "transformer engine version: %s (>=0.12.0 required)." % get_te_version()
 
     # Search in directory above this
     sys.path.append(os.path.abspath(
