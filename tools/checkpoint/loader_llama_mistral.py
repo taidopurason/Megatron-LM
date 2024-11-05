@@ -38,6 +38,11 @@ def add_arguments(parser):
     group.add_argument('--loader-transformer-impl', default='local',
                        choices=['local', 'transformer_engine'],
                        help='Which Transformer implementation to use.')
+    group.add_argument('--no-gradient-accumulation-fusion',
+                       action='store_false',
+                       help='Disable fusing gradient accumulation to weight '
+                            'gradient computation of linear layers',
+                       dest='gradient_accumulation_fusion')
 
 
 def verify_transformers_version():
