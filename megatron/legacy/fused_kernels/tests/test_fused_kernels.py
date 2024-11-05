@@ -1,14 +1,13 @@
-# Copyright (c) 2024, NVIDIA CORPORATION. All rights reserved.
 import math
 
 import torch
 from torch.nn import LayerNorm
 
-from megatron.legacy.model.enums import AttnMaskType
-from megatron.legacy.model.fused_layer_norm import MixedFusedLayerNorm
-from megatron.legacy.model.fused_softmax import FusedScaleMaskSoftmax
-from megatron.legacy.model.utils import attention_mask_func
-from megatron.legacy.fused_kernels import load
+from megatron.model.enums import AttnMaskType
+from megatron.model.fused_layer_norm import MixedFusedLayerNorm
+from megatron.model.fused_softmax import FusedScaleMaskSoftmax
+from megatron.model.utils import attention_mask_func
+from megatron.fused_kernels import load
 
 def test_load_fused_kernels():
     try:
@@ -374,7 +373,7 @@ if __name__ == "__main__":
             transformers.logging.FATAL,
         )
 
-    except ImportError:
+    except:
         print("\n[Fail] Please install `transformers` package to test fused kernels\n")
         exit(-1)
 
