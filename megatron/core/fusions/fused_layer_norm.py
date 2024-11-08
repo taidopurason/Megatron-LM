@@ -3,6 +3,7 @@
 import importlib
 import inspect
 import numbers
+import warnings
 
 import torch
 from torch import Tensor
@@ -20,7 +21,7 @@ except ImportError:
     HAVE_PERSIST_LAYER_NORM = False
 
 try:
-    from apex.normalization.fused_layer_norm import FusedLayerNormAffineFunction
+    from apex.normalization.fused_layer_norm import FusedLayerNormAffineFunction, FusedRMSNormAffineFunction
 
     HAVE_FUSED_LAYER_NORM = True
 except ImportError:
@@ -50,22 +51,22 @@ class FusedLayerNorm(torch.nn.Module):
     """
 
     def __init__(
-        self,
-        config: TransformerConfig,
-        hidden_size: int,
-        eps: float = 1e-5,
-        persist_layer_norm: bool = True,
-        zero_centered_gamma: bool = False,
-        normalization: str = "LayerNorm",  # included to match TE interface
+            self,
+            config: TransformerConfig,
+            hidden_size: int,
+            eps: float = 1e-5,
     ):
         super().__init__()
 
         self.config = config
 
         self.zero_centered_gamma = self.config.layernorm_zero_centered_gamma
-        assert (
-            self.config.normalization == "LayerNorm"
-        ), f'({self.config.normalization}) is not supported in FusedLayerNorm'
+        if self.config.normalization == "LayerNorm":
+            self.norm_fn = FusedLayerNormAffineFunction
+        elif self.config.normalization == "RMSNorm":
+            self.norm_fn = FusedRMSNormAffineFunction
+        else:
+            raise RuntimeError(f'({self.config.normalization}) is not supported in FusedLayerNorm')
 
         # List of hiddens sizes supported in the persistent layer norm kernel
         # If the hidden size is not supported, fall back to the non-persistent
@@ -115,6 +116,9 @@ class FusedLayerNorm(torch.nn.Module):
         self.persist_layer_norm = persist_layer_norm
         self.sequence_parallel = self.config.sequence_parallel
 
+        if persist_layer_norm:
+            warnings.warn("Persistent Layer Norm is not supported in this version of Megatron.")
+
         # set sequence parallelism flag on weight and bias parameters
         setattr(self.weight, 'sequence_parallel', self.sequence_parallel)
         setattr(self.bias, 'sequence_parallel', self.sequence_parallel)
@@ -132,38 +136,21 @@ class FusedLayerNorm(torch.nn.Module):
 
         weight = self.weight + 1 if self.zero_centered_gamma else self.weight
 
-        if self.persist_layer_norm:
-            if 'memory_efficient' in inspect.getfullargspec(FastLayerNormFN.forward).args:
-                output = FastLayerNormFN.apply(
-                    input, weight, self.bias, self.eps, self.config.memory_efficient_layer_norm
-                )
-            else:
-                output = FastLayerNormFN.apply(input, weight, self.bias, self.eps)
-
-            # Apex's fast layer norm function outputs a 'view' tensor (i.e., has
-            # a populated '_base' field). This will result in schedule.py's
-            # deallocate_output_tensor() throwing an error, so a viewless tensor is
-            # created to prevent this.
-            output = make_viewless_tensor(
-                inp=output, requires_grad=input.requires_grad, keep_graph=True
-            )
-
-        else:
-            if (
+        if (
                 'memory_efficient'
                 in inspect.getfullargspec(FusedLayerNormAffineFunction.forward).args
-            ):
-                return FusedLayerNormAffineFunction.apply(
-                    input,
-                    weight,
-                    self.bias,
-                    self.hidden_size,
-                    self.eps,
-                    self.config.memory_efficient_layer_norm,
-                )
-            else:
-                return FusedLayerNormAffineFunction.apply(
-                    input, weight, self.bias, self.hidden_size, self.eps
-                )
+        ):
+            return self.norm_fn.apply(
+                input,
+                weight,
+                self.bias,
+                self.hidden_size,
+                self.eps,
+                self.config.memory_efficient_layer_norm,
+            )
+        else:
+            return self.norm_fn.apply(
+                input, weight, self.bias, self.hidden_size, self.eps
+            )
 
         return output
