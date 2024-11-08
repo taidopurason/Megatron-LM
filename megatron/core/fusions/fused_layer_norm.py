@@ -28,7 +28,7 @@ except ImportError:
     HAVE_FUSED_LAYER_NORM = False
 
 
-class TENorm:
+class FusedLayerNorm:
     """
     A conditional wrapper to initialize an instance of Transformer-Engine's
     `LayerNorm` or `RMSNorm` based on input
