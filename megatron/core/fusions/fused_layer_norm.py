@@ -138,7 +138,7 @@ class FusedLayerNorm(torch.nn.Module):
 
         if (
                 'memory_efficient'
-                in inspect.getfullargspec(FusedLayerNormAffineFunction.forward).args
+                in inspect.getfullargspec(self.norm_fn.forward).args
         ):
             return self.norm_fn.apply(
                 input,
