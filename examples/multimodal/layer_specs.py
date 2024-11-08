@@ -12,7 +12,7 @@ from megatron.core.transformer.spec_utils import ModuleSpec
 from megatron.core.transformer.transformer_layer import TransformerLayer, TransformerLayerSubmodules
 
 try:
-    from megatron.core.extensions.transformer_engine import (
+    from megatron.core.transformer.custom_layers.transformer_engine import (
         TEColumnParallelLinear,
         TEDotProductAttention,
         TELayerNormColumnParallelLinear,
@@ -20,6 +20,8 @@ try:
         TERowParallelLinear,
     )
 
+    LNImplRMS = TENorm
+    LNImpl = TENorm
     HAVE_TE = True
 except ImportError:
     HAVE_TE = False
@@ -31,14 +33,18 @@ try:
     from megatron.core.transformer.torch_norm import WrappedTorchNorm
 
     HAVE_APEX = True
-    LNImpl = FusedLayerNorm
+    if not HAVE_TE:
+        LNImpl = FusedLayerNorm
+        LNImplRMS = FusedLayerNorm
 except ImportError:
     import warnings
 
     from megatron.core.transformer.torch_norm import WrappedTorchNorm
 
     warnings.warn(f'Apex is not installed. Falling back to Torch Norm')
-    LNImpl = WrappedTorchNorm
+    if not HAVE_TE:
+        LNImpl = WrappedTorchNorm
+        LNImplRMS = WrappedTorchNorm
 
 
 def get_layer_spec(is_vit, normalization) -> ModuleSpec:
@@ -46,23 +52,9 @@ def get_layer_spec(is_vit, normalization) -> ModuleSpec:
     if normalization == "LayerNorm":
         norm = LNImpl
     elif normalization == "RMSNorm":
-        if HAVE_TE:
-            norm = TENorm
-        else:
-            version = torch.__version__.split('.')
-            version_geq_2_4 = (
-                int(TORCH_VERSION[0]) > 2
-                or (
-                    int(TORCH_VERSION[0]) == 2
-                    and int(TORCH_VERSION[1]) >= 4
-                )
-            )
-            assert version_geq_2_4, "Torch version >= 2.4.0 is required for RMSNorm"
-            if HAVE_APEX:
-                warnings.warn(f'Apex does not support RMSNorm. Falling back to Torch Norm')
-            norm = WrappedTorchNorm
+        norm = LNImplRMS
     else:
-        raise RuntimeError("unknown normalization", normalization)
+        norm = WrappedTorchNorm
 
     mlp = get_mlp_module_spec(use_te=False)  # doesn't include norm.
 
