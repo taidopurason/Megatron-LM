@@ -40,7 +40,7 @@ class MixedFusedRMSNorm(torch.nn.Module):
         eps: float = 1e-5,
     ):
         super(MixedFusedRMSNorm, self).__init__()
-
+        self.config = config
         self.layernorm_zero_centered_gamma = self.config.layernorm_zero_centered_gamma
         self.memory_efficient_layer_norm = self.config.memory_efficient_layer_norm
         self.norm_fn = FusedRMSNormAffineFunction
