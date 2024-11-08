@@ -29,14 +29,17 @@ try:
 
     HAVE_TE = True
     LayerNormImpl = TENorm
+    LayerNormImplRMS = TENorm
 except ImportError:
     HAVE_TE = False
     get_cpu_offload_context = None
 
     try:
         import apex  # pylint: disable=unused-import
+        from megatron.core.fusions.mixed_fused_layer_norm import MixedFusedRMSNorm
 
         LayerNormImpl = FusedLayerNorm
+        LayerNormImplRMS = MixedFusedRMSNorm
 
     except ImportError:
         from megatron.core.transformer.torch_layer_norm import WrappedTorchLayerNorm
@@ -154,13 +157,19 @@ def _get_block_submodules(
     # ModuleSpec here is generally assumed to be for a transformer layer that
     # is implemented in `transformer_layer.py` or if it subclasses
     # `BaseTransformerLayer` from the `transformer_layer.py` file.
+
     elif isinstance(spec, ModuleSpec):
+        if config.normalization == "LayerNorm":
+            norm = LayerNormImpl
+        elif config.normalization == "RMSNorm":
+            norm = LayerNormImplRMS
+
         if issubclass(spec.module, TransformerBlock):
             return spec.submodules
         elif issubclass(spec.module, BaseTransformerLayer):
             num_layers = get_num_layers_to_build(config)
             return TransformerBlockSubmodules(
-                layer_specs=[spec] * num_layers, layer_norm=LayerNormImpl
+                layer_specs=[spec] * num_layers, layer_norm=norm
             )
         else:
             raise Exception(f"specialize for {spec.module.__name__}.")
