@@ -20,6 +20,7 @@ try:
         TERowParallelLinear,
     )
 
+    LNImplRMS = TENorm
     HAVE_TE = True
 except ImportError:
     HAVE_TE = False
@@ -31,6 +32,7 @@ try:
 
     HAVE_APEX = True
     LNImpl = FusedLayerNorm
+    LNImplRMS = FusedLayerNorm
 except ImportError:
     import warnings
 
@@ -45,7 +47,7 @@ def get_layer_spec(is_vit, normalization) -> ModuleSpec:
     if normalization == "LayerNorm":
         norm = LNImpl
     elif normalization == "RMSNorm":
-        norm = TENorm
+        norm = LNImplRMS
     else:
         raise RuntimeError("unknown normalization", normalization)
 
