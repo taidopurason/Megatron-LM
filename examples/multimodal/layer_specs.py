@@ -30,11 +30,9 @@ try:
 
     from megatron.core.fusions.fused_layer_norm import FusedLayerNorm
 
-    from megatron.core.fusions.mixed_fused_layer_norm import MixedFusedRMSNorm
-
     HAVE_APEX = True
     LNImpl = FusedLayerNorm
-    LNImplRMS = MixedFusedRMSNorm
+    LNImplRMS = FusedLayerNorm
 except ImportError:
     import warnings
 

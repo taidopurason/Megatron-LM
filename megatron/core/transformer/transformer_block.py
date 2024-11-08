@@ -39,7 +39,7 @@ except ImportError:
         from megatron.core.fusions.mixed_fused_layer_norm import MixedFusedRMSNorm
 
         LayerNormImpl = FusedLayerNorm
-        LayerNormImplRMS = MixedFusedRMSNorm
+        LayerNormImplRMS = FusedLayerNorm
 
     except ImportError:
         from megatron.core.transformer.torch_layer_norm import WrappedTorchLayerNorm
