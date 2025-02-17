@@ -4,6 +4,7 @@ import argparse
 import importlib
 import torch.multiprocessing as mp
 import sys
+import torch
 
 # A loader is a python file with at least two functions
 # - add_arguments - takes in a parser and adds any arguments needed
@@ -129,6 +130,7 @@ def main():
                         dest='checking')
 
     known_args, _ = parser.parse_known_args()
+    torch.multiprocessing.set_start_method('spawn')
     loader = load_plugin('loader', known_args.loader)
     saver = load_plugin('saver', known_args.saver)
 
