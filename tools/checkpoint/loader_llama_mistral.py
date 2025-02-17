@@ -315,7 +315,7 @@ def load_args_from_checkpoint(args):
     args.swiglu = True
     args.normalization = "RMSNorm"
     args.add_bias_linear = False
-    args.untie_embeddings_and_output_weights = True
+    args.untie_embeddings_and_output_weights = not model_args.get("tie_word_embeddings", False)
     args.vocab_size = model_args["vocab_size"]
     args.padded_vocab_size = model_args["vocab_size"]
     args.ffn_hidden_size = model_args["intermediate_size"]
