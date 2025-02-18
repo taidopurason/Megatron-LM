@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+import math
+from typing import TYPE_CHECKING, Optional
 
 if TYPE_CHECKING:
     from megatron.core.transformer.transformer_config import TransformerConfig
@@ -31,6 +32,28 @@ logger = logging.getLogger(__name__)
 
 __all__ = ['RotaryEmbedding']
 
+# https://github.com/huggingface/transformers/blob/d5a99dfcee6e94065cb7c83cc8ab6fc5daa0cc4e/src/transformers/modeling_rope_utils.py#L298
+def llama3_rope_scaling(
+    inv_freq: torch.Tensor,
+    factor: float,
+    high_freq_factor: float,
+    low_freq_factor: float,
+    original_max_position_embeddings: int
+) -> torch.Tensor:
+    old_context_len = original_max_position_embeddings
+    low_freq_wavelen = old_context_len / low_freq_factor
+    high_freq_wavelen = old_context_len / high_freq_factor
+
+    wavelen = 2 * math.pi / inv_freq
+    inv_freq_llama = torch.where(wavelen > low_freq_wavelen, inv_freq / factor, inv_freq)
+    # otherwise: interpolate between the two, using a smooth factor
+    smooth_factor = (old_context_len / wavelen - low_freq_factor) / (high_freq_factor - low_freq_factor)
+    smoothed_inv_freq = (1 - smooth_factor) * inv_freq_llama / factor + smooth_factor * inv_freq_llama
+    is_medium_freq = ~(wavelen < high_freq_wavelen) * ~(wavelen > low_freq_wavelen)
+    inv_freq_llama = torch.where(is_medium_freq, smoothed_inv_freq, inv_freq_llama)
+
+    return inv_freq_llama
+
 
 class RotaryEmbedding(nn.Module):
     """Rotary Embedding for language model.
@@ -46,22 +69,23 @@ class RotaryEmbedding(nn.Module):
             for longer sequences. The value must be a float larger than 1.0. Defaults to None
         rotary_base (int, optional): Base period for rotary position embeddings. Defaults to
             10000.
-        rope_scaling (bool, optional): Apply rope scaling as used in llama 3.x.
-        rope_scaling_factor (float, optional): rope scaling factor in llama 3.x. Defaults to 8.
         use_cpu_initialization (bool, optional): If False, initialize the inv_freq directly
             on the GPU. Defaults to False
     """
 
     def __init__(
-        self,
-        kv_channels: int,
-        rotary_percent: float,
-        rotary_interleaved: bool = False,
-        seq_len_interpolation_factor: float = None,
-        rotary_base: int = 10000,
-        rope_scaling: bool = False,
-        rope_scaling_factor: float = 8.0,
-        use_cpu_initialization: bool = False,
+            self,
+            kv_channels: int,
+            rotary_percent: float,
+            rotary_interleaved: bool = False,
+            seq_len_interpolation_factor: float = None,
+            rotary_base: int = 10000,
+            use_cpu_initialization: bool = False,
+            scaling_type: Optional[str] = None,
+            scaling_factor: Optional[float] = None,
+            high_freq_factor: Optional[float] = None,
+            low_freq_factor: Optional[float] = None,
+            original_max_position_embeddings: Optional[int] = None,
     ) -> None:
         super().__init__()
 
@@ -76,43 +100,24 @@ class RotaryEmbedding(nn.Module):
             rotary_base ** (torch.arange(0, dim, 2, dtype=torch.float32, device=device) / dim)
         )
 
-        if rope_scaling:
-            self.inv_freq = self._apply_scaling(self.inv_freq, factor=rope_scaling_factor)
+        if scaling_type == "llama3":
+            assert scaling_factor is not None, "rope_factor must be provided for llama3 RoPE"
+            assert low_freq_factor is not None, "low_freq_factor must be provided for llama3 RoPE"
+            assert high_freq_factor is not None, "high_freq_factor must be provided for llama3 RoPE"
+            assert original_max_position_embeddings is not None, (
+                "original_max_position_embeddings must be provided for llama3 RoPE"
+            )
 
-    def _apply_scaling(
-        self,
-        freqs,
-        factor=8,
-        low_freq_factor=1,
-        high_freq_factor=4,
-        original_max_position_embeddings=8192,
-    ):
-        # This implementation is adapted from:
-        # https://github.com/huggingface/transformers/blob/2a5a6ad18aa22e98429bb5ecb880660328030ea0/src/transformers/modeling_rope_utils.py#L303-L343
+            self.inv_freq = llama3_rope_scaling(
+                self.inv_freq,
+                factor=scaling_factor,
+                high_freq_factor=high_freq_factor,
+                low_freq_factor=low_freq_factor,
+                original_max_position_embeddings=original_max_position_embeddings
+            )
+        elif scaling_type != "default" and scaling_type is not None:
+            raise ValueError(f"Invalid RoPE type: {scaling_type}")
 
-        factor = factor  # `8` in the original implementation
-        low_freq_factor = low_freq_factor  # `1` in the original implementation
-        high_freq_factor = high_freq_factor  # `4` in the original implementation
-        old_context_len = original_max_position_embeddings  # `8192` in the original implementation
-
-        low_freq_wavelen = old_context_len / low_freq_factor
-        high_freq_wavelen = old_context_len / high_freq_factor
-
-        wavelen = 2 * math.pi / freqs
-        # wavelen < high_freq_wavelen: do nothing
-        # wavelen > low_freq_wavelen: divide by factor
-        inv_freq_llama = torch.where(wavelen > low_freq_wavelen, freqs / factor, freqs)
-        # otherwise: interpolate between the two, using a smooth factor
-        smooth_factor = (old_context_len / wavelen - low_freq_factor) / (
-            high_freq_factor - low_freq_factor
-        )
-        smoothed_inv_freq = (
-            1 - smooth_factor
-        ) * inv_freq_llama / factor + smooth_factor * inv_freq_llama
-        is_medium_freq = ~(wavelen < high_freq_wavelen) * ~(wavelen > low_freq_wavelen)
-        inv_freq_llama = torch.where(is_medium_freq, smoothed_inv_freq, inv_freq_llama)
-
-        return inv_freq_llama
 
     def get_freqs_non_repeated(self, max_seq_len: int, offset: int = 0) -> Tensor:
         """Generates matrix of frequencies based on positions in the sequence,

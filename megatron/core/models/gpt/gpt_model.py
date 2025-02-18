@@ -79,6 +79,11 @@ class GPTModel(LanguageModule):
         rope_scaling_factor: float = 8.0,
         scatter_embedding_sequence_parallel: bool = True,
         seq_len_interpolation_factor: Optional[float] = None,
+        rotary_scaling_type: Optional[str] = None,
+        rotary_scaling_factor: Optional[float] = None,
+        rotary_high_freq_factor: Optional[float] = None,
+        rotary_low_freq_factor: Optional[float] = None,
+        rotary_original_max_position_embeddings: Optional[int] = None,
     ) -> None:
         super().__init__(config=config)
 
@@ -124,6 +129,11 @@ class GPTModel(LanguageModule):
                 rope_scaling=rope_scaling,
                 rope_scaling_factor=rope_scaling_factor,
                 use_cpu_initialization=self.config.use_cpu_initialization,
+                scaling_type=rotary_scaling_type,
+                scaling_factor=rotary_scaling_factor,
+                high_freq_factor=rotary_high_freq_factor,
+                low_freq_factor=rotary_low_freq_factor,
+                original_max_position_embeddings=rotary_original_max_position_embeddings,
             )
 
         # Cache for RoPE tensors which do not change between iterations.
