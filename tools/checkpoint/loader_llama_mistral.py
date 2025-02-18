@@ -319,6 +319,16 @@ def load_args_from_checkpoint(args):
     args.vocab_size = model_args["vocab_size"]
     args.padded_vocab_size = model_args["vocab_size"]
     args.ffn_hidden_size = model_args["intermediate_size"]
+    if "rope_theta" in model_args:
+        args.rope_base = model_args["rope_theta"]
+    if "rope_scaling" in model_args:
+        scaling_args = model_args["rope_scaling"]
+        args.rotary_scaling_type = scaling_args.get("rope_type", None)
+        args.rotary_scaling_factor = scaling_args.get("factor", None)
+        args.rotary_high_freq_factor = scaling_args.get("high_freq_factor", None)
+        args.rotary_low_freq_factor = scaling_args.get("low_freq_factor", None)
+        args.rotary_original_max_position_embeddings = scaling_args.get("original_max_position_embeddings", None)
+
 
     if "num_key_value_heads" in model_args:
         args.group_query_attention = True

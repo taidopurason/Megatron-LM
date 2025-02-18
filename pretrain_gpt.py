@@ -105,7 +105,12 @@ def model_provider(pre_process=True, post_process=True) -> Union[GPTModel, megat
                 share_embeddings_and_output_weights=not args.untie_embeddings_and_output_weights,
                 position_embedding_type=args.position_embedding_type,
                 rotary_percent=args.rotary_percent,
-                rotary_base=args.rotary_base
+                rotary_base=args.rotary_base,
+                rotary_scaling_type=args.rotary_scaling_type,
+                rotary_scaling_factor=args.rotary_scaling_factor,
+                rotary_high_freq_factor=args.rotary_high_freq_factor,
+                rotary_low_freq_factor=args.rotary_low_freq_factor,
+                rotary_original_max_position_embeddings=args.rotary_original_max_position_embeddings,
             )
 
     return model

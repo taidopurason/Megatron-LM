@@ -70,6 +70,11 @@ class GPTModel(LanguageModule):
         rotary_percent: float = 1.0,
         rotary_base: int = 10000,
         seq_len_interpolation_factor: Optional[float] = None,
+        rotary_scaling_type: Optional[str] = None,
+        rotary_scaling_factor: Optional[float] = None,
+        rotary_high_freq_factor: Optional[float] = None,
+        rotary_low_freq_factor: Optional[float] = None,
+        rotary_original_max_position_embeddings: Optional[int] = None,
     ) -> None:
         super().__init__(config=config)
 
@@ -110,6 +115,11 @@ class GPTModel(LanguageModule):
                 seq_len_interpolation_factor=seq_len_interpolation_factor,
                 rotary_base=rotary_base,
                 use_cpu_initialization=self.config.use_cpu_initialization,
+                scaling_type=rotary_scaling_type,
+                scaling_factor=rotary_scaling_factor,
+                high_freq_factor=rotary_high_freq_factor,
+                low_freq_factor=rotary_low_freq_factor,
+                original_max_position_embeddings=rotary_original_max_position_embeddings,
             )
 
         # Transformer.
