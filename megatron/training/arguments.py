@@ -1054,7 +1054,7 @@ def _add_network_size_args(parser):
                        help='Sequence length interpolation factor for rotary embeddings.')
     group.add_argument('--rotary-scaling-type', type=str, default=None,
                        help='Rotary embedding initialization type', choices=[None, "default", "llama3"])
-    group.add_argument('--rotary-scaling-factor', type=float, default=None, help='Rotary factor')
+    group.add_argument('--rotary-scaling-factor', type=float, default=1.0, help='Rotary factor')
     group.add_argument('--rotary-low-freq-factor', type=float, default=None, help='Rotary low frequency factor')
     group.add_argument('--rotary-high-freq-factor', type=float, default=None, help='Rotary high frequency factor')
     group.add_argument('--rotary-original-max-position-embeddings', type=int, default=None)
@@ -2260,8 +2260,6 @@ def _add_mla_args(parser):
                        help="Dimension of the position embedding in the QK projection.")
     group.add_argument('--v-head-dim', type=int, default=128,
                        help="Dimension of the head in the V projection.")
-    group.add_argument('--rotary-scaling-factor', type=float, default=1.0,
-                       help="Rotary scaling factor for the rotary embeddings.")
     group.add_argument('--mscale', type=float, default=1.0,
                        help="Mscale for YaRN RoPE in multi-latent attention.")
     group.add_argument('--mscale-all-dim', type=float, default=1.0,
