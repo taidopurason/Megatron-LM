@@ -51,8 +51,6 @@ class GPTModel(LanguageModule):
             Base period for rotary position embeddings. Ignored unless
             position_embedding_type is 'rope'.
             Defaults to 10000.
-        rope_scaling (bool, optional): Toggle RoPE scaling.
-        rope_scaling_factor (float): RoPE scaling factor. Default 8.
         scatter_embedding_sequence_parallel (bool, optional):
             Whether embeddings should be scattered across sequence parallel
             region or not. Defaults to True.
@@ -106,7 +104,6 @@ class GPTModel(LanguageModule):
         self.max_position_embeddings = max_sequence_length
         self.rotary_percent = rotary_percent
         self.rotary_base = rotary_base
-        self.rotary_scaling = rope_scaling
 
         if self.pre_process:
             self.embedding = LanguageModelEmbedding(
